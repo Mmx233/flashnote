@@ -2,8 +2,7 @@ import { useEffect, useRef } from 'react';
 
 /**
  * Declarative setTimeout hook.
- * Pass a number to start the timer, `null` to cancel/pause.
- * Fires once per non-null delay change.
+ * Pass a number to start the timer, `null` to cancel.
  */
 export default function useTimeout(callback: () => void, delay: number | null) {
   const savedCallback = useRef(callback);

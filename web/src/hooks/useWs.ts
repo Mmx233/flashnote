@@ -4,7 +4,7 @@ import useAppStore from '@/stores/useAppStore';
 
 import useInterval from '@/hooks/useInterval';
 import useTimeout from '@/hooks/useTimeout';
-
+import useEventListener from '@/hooks/useEventListener';
 import type { Clip, ServerLimits, WSMessage } from '@/types';
 
 // Heartbeat message sent to server to keep connection alive
@@ -15,7 +15,7 @@ const PING = JSON.stringify({ type: 'ping' });
  * - Heartbeat interval driven by server config (via useInterval)
  * - Reconnect after 3s on unexpected close (via useTimeout)
  * - Blur disconnect after server-configured timeout (via useTimeout)
- * - Focus/blur lifecycle via visibilitychange
+ * - Focus/blur lifecycle via window focus/blur events
  */
 export default function useWs(onReconnect: () => void) {
   const connected = useAppStore((s) => s.connected);
@@ -26,20 +26,25 @@ export default function useWs(onReconnect: () => void) {
   const onReconnectRef = useRef(onReconnect);
   onReconnectRef.current = onReconnect;
 
-  // null = timer inactive, number = timer ticking
   const [reconnectDelay, setReconnectDelay] = useState<number | null>(null);
   const [blurDelay, setBlurDelay] = useState<number | null>(null);
 
   const connect = useCallback(() => {
-    // cancel pending reconnect
     setReconnectDelay(null);
+
+    // Close any existing connection before opening a new one
+    if (wsRef.current) {
+      wsRef.current.onclose = null;
+      wsRef.current.close();
+      wsRef.current = null;
+    }
 
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const url = `${protocol}//${location.host}/ws`;
     const ws = new WebSocket(url);
     wsRef.current = ws;
 
-    ws.onopen = () => useAppStore.setState({ connected: true });
+    ws.onopen = () => useAppStore.setState({ connected: true, reconnecting: false });
 
     ws.onmessage = (event) => {
       try {
@@ -48,6 +53,7 @@ export default function useWs(onReconnect: () => void) {
           case 'config': {
             const cfg = msg.data as ServerLimits;
             useAppStore.setState({ limits: cfg, ttl: cfg.defaultTTL });
+            ws.send(PING);
             break;
           }
           case 'clip:created':
@@ -65,8 +71,7 @@ export default function useWs(onReconnect: () => void) {
     ws.onclose = () => {
       wsRef.current = null;
       useAppStore.setState({ connected: false });
-      // schedule reconnect if page is visible
-      if (document.visibilityState === 'visible') {
+      if (document.hasFocus()) {
         setReconnectDelay(3000);
       }
     };
@@ -89,27 +94,30 @@ export default function useWs(onReconnect: () => void) {
   // --- blur disconnect timer ---
   useTimeout(() => {
     setBlurDelay(null);
-    wsRef.current?.close();
-    wsRef.current = null;
+    if (wsRef.current) {
+      wsRef.current.onclose = null;
+      wsRef.current.close();
+      wsRef.current = null;
+    }
   }, blurDelay);
 
-  // --- visibility lifecycle ---
-  useEffect(() => {
-    function handleVisibilityChange() {
-      if (document.visibilityState === 'visible') {
-        setBlurDelay(null);
-        if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
-          connect();
-          onReconnectRef.current();
-        }
-      } else {
-        setBlurDelay(blurDisconnectTimeout * 1000);
-      }
+  const handleFocus = useCallback(() => {
+    setBlurDelay(null);
+    setReconnectDelay(null);
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      useAppStore.setState({ reconnecting: true });
+      connect();
+      onReconnectRef.current();
     }
+  }, [connect]);
 
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [connect, blurDisconnectTimeout]);
+  const handleBlur = useCallback(() => {
+    setReconnectDelay(null);
+    setBlurDelay(blurDisconnectTimeout * 1000);
+  }, [blurDisconnectTimeout]);
+
+  useEventListener('focus', handleFocus, 'window');
+  useEventListener('blur', handleBlur, 'window');
 
   // --- initial connect ---
   useEffect(() => {
