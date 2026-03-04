@@ -81,12 +81,8 @@ func (s *ClipStore) Load() error {
 		}
 
 		// Clean up image clips whose image file is missing
-		if clip.Type == model.ClipTypeImage && clip.FileName != "" {
-			ext := filepath.Ext(clip.FileName)
-			if ext == "" {
-				ext = ".png"
-			}
-			imgPath := filepath.Join(s.storePath, clip.ID+ext)
+		if clip.Type == model.ClipTypeImage && clip.DiskName != "" {
+			imgPath := filepath.Join(s.storePath, clip.DiskName)
 			if _, err := os.Stat(imgPath); os.IsNotExist(err) {
 				log.Warnf("removing orphan clip %s: image file %s not found", clip.ID, imgPath)
 				s.removeClipFiles(&clip)
@@ -202,12 +198,8 @@ func (s *ClipStore) Remove(id string) error {
 	}
 
 	// Delete image file if applicable
-	if clip.Type == model.ClipTypeImage && clip.FileName != "" {
-		ext := filepath.Ext(clip.FileName)
-		if ext == "" {
-			ext = ".png"
-		}
-		imgPath := filepath.Join(s.storePath, id+ext)
+	if clip.Type == model.ClipTypeImage && clip.DiskName != "" {
+		imgPath := filepath.Join(s.storePath, clip.DiskName)
 		if err := os.Remove(imgPath); err != nil && !os.IsNotExist(err) {
 			log.Warnf("failed to remove image file %s: %v", imgPath, err)
 		}
@@ -237,12 +229,8 @@ func (s *ClipStore) removeClipFiles(clip *model.Clip) {
 	if err := os.Remove(jsonPath); err != nil && !os.IsNotExist(err) {
 		log.Warnf("failed to remove metadata file %s: %v", jsonPath, err)
 	}
-	if clip.Type == model.ClipTypeImage && clip.FileName != "" {
-		ext := filepath.Ext(clip.FileName)
-		if ext == "" {
-			ext = ".png"
-		}
-		imgPath := filepath.Join(s.storePath, clip.ID+ext)
+	if clip.Type == model.ClipTypeImage && clip.DiskName != "" {
+		imgPath := filepath.Join(s.storePath, clip.DiskName)
 		if err := os.Remove(imgPath); err != nil && !os.IsNotExist(err) {
 			log.Warnf("failed to remove image file %s: %v", imgPath, err)
 		}

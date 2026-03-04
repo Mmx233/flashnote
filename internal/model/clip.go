@@ -11,12 +11,13 @@ const (
 
 // Clip is persisted as a JSON file: {storePath}/{id}.json
 type Clip struct {
-	ID        string   `json:"id"`
-	Type      ClipType `json:"type"`
-	Content   string   `json:"content,omitempty"`  // text only
-	FileName  string   `json:"fileName,omitempty"` // image only
-	FileSize  int64    `json:"fileSize,omitempty"` // image only
-	MimeType  string   `json:"mimeType,omitempty"` // image only
+	ID        string    `json:"id"`
+	Type      ClipType  `json:"type"`
+	Content   string    `json:"content,omitempty"`  // text only
+	FileName  string    `json:"fileName,omitempty"` // original filename for download, image only
+	DiskName  string    `json:"diskName,omitempty"` // on-disk filename ({id}.ext), image only
+	FileSize  int64     `json:"fileSize,omitempty"` // image only
+	MimeType  string    `json:"mimeType,omitempty"` // image only
 	ExpiresAt time.Time `json:"expiresAt"`
 	CreatedAt time.Time `json:"createdAt"`
 }

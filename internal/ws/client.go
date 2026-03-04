@@ -44,8 +44,8 @@ func (c *Client) ReadPump() {
 			continue
 		}
 
-		if msg.Type == "ping" {
-			pong := &Message{Type: "pong", Data: nil}
+		if msg.Type == MsgPing {
+			pong := &Message{Type: MsgPong, Data: nil}
 			pongData, err := json.Marshal(pong)
 			if err != nil {
 				continue

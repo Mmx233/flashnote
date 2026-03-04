@@ -17,9 +17,18 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
+// Message type constants.
+const (
+	MsgConfig     = "config"
+	MsgClipCreate = "clip:created"
+	MsgClipExpire = "clip:expired"
+	MsgPing       = "ping"
+	MsgPong       = "pong"
+)
+
 // Message is the envelope for all WebSocket messages.
 type Message struct {
-	Type string      `json:"type"` // "clip:created" | "clip:expired" | "config" | "ping" | "pong"
+	Type string      `json:"type"`
 	Data interface{} `json:"data"`
 }
 
@@ -115,7 +124,7 @@ func (h *Hub) HandleWS(ctx *gin.Context) {
 	h.Register(client)
 
 	// Send config as the first message
-	configMsg := &Message{Type: "config", Data: h.limits}
+	configMsg := &Message{Type: MsgConfig, Data: h.limits}
 	configData, err := json.Marshal(configMsg)
 	if err != nil {
 		log.Errorf("failed to marshal config message: %v", err)
