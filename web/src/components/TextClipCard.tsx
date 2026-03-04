@@ -2,6 +2,7 @@ import { useRef, useState, useEffect } from 'react';
 import { Modal } from 'antd';
 import { CopyOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { TextClip } from '@/types';
+import Countdown from './Countdown';
 
 const MAX_HEIGHT = 128;
 
@@ -47,6 +48,7 @@ export default function TextClipCard({ clip, onCopy, onDelete, disabled }: TextC
             </button>
           )}
           <div className="flex items-center justify-end gap-1 px-3 py-1.5">
+            <Countdown expiresAt={clip.expiresAt} createdAt={clip.createdAt} className="mr-auto" />
             <button onClick={onCopy} disabled={disabled} className="p-1.5 rounded-md text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 disabled:opacity-30 transition-colors text-xs flex items-center gap-1">
               <CopyOutlined /> Copy
             </button>

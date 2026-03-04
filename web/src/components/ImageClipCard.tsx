@@ -1,5 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
-import { Image, Tooltip } from 'antd';
+import { Image } from 'antd';
 import {
   CopyOutlined,
   DeleteOutlined,
@@ -7,6 +6,7 @@ import {
   ShareAltOutlined,
 } from '@ant-design/icons';
 import type { ImageClip } from '@/types';
+import Countdown from './Countdown';
 
 interface ImageClipCardProps {
   clip: ImageClip;
@@ -26,13 +26,6 @@ export default function ImageClipCard({
   disabled,
 }: ImageClipCardProps) {
   const fileUrl = `/api/clips/${clip.id}/file`;
-  const nameRef = useRef<HTMLSpanElement>(null);
-  const [truncated, setTruncated] = useState(false);
-
-  useEffect(() => {
-    const el = nameRef.current;
-    if (el) setTruncated(el.scrollWidth > el.clientWidth);
-  }, [clip.fileName]);
 
   return (
     <div className="flex flex-col h-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
@@ -58,9 +51,7 @@ export default function ImageClipCard({
         />
       </div>
       <div className="flex items-center justify-end gap-1 px-3 py-1.5 border-t border-gray-100 dark:border-gray-800">
-        <Tooltip title={truncated ? clip.fileName : undefined}>
-          <span ref={nameRef} className="mr-auto text-xs text-gray-400 truncate max-w-[50%]">{clip.fileName}</span>
-        </Tooltip>
+        <Countdown expiresAt={clip.expiresAt} createdAt={clip.createdAt} className="mr-auto" />
         <button onClick={onCopy} disabled={disabled} className="p-1.5 rounded-md text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 disabled:opacity-30 transition-colors text-xs">
           <CopyOutlined />
         </button>
