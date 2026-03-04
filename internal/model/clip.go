@@ -13,6 +13,7 @@ const (
 type Clip struct {
 	ID        string    `json:"id"`
 	Type      ClipType  `json:"type"`
+	Hash      string    `json:"hash"`
 	Content   string    `json:"content,omitempty"`  // text only
 	FileName  string    `json:"fileName,omitempty"` // original filename for download, image only
 	DiskName  string    `json:"diskName,omitempty"` // on-disk filename ({id}.ext), image only

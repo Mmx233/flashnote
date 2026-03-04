@@ -1,6 +1,7 @@
 // Base clip fields shared by all clip types
 export interface ClipBase {
   id: string;
+  hash: string;
   expiresAt: string;
   createdAt: string;
 }

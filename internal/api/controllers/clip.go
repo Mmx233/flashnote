@@ -22,6 +22,7 @@ type createReq struct {
 	Type    string `json:"type" form:"type" binding:"required,oneof=text image"`
 	Content string `json:"content" form:"content"`
 	TTL     string `json:"ttl" form:"ttl" binding:"required"`
+	Hash    string `json:"hash" form:"hash"`
 }
 
 // Create handles clip creation for both text (JSON) and image (multipart) types.
@@ -41,7 +42,7 @@ func (c *ClipController) Create(ctx *gin.Context) {
 
 	switch req.Type {
 	case "text":
-		clip, err := c.service.CreateText(req.Content, ttl)
+		clip, err := c.service.CreateText(req.Content, ttl, req.Hash)
 		if err != nil {
 			callback.HandleError(ctx, err)
 			return
@@ -54,7 +55,7 @@ func (c *ClipController) Create(ctx *gin.Context) {
 			callback.Error(ctx, callback.CodeBadRequest, "missing file")
 			return
 		}
-		clip, err := c.service.CreateImage(file, ttl)
+		clip, err := c.service.CreateImage(file, ttl, req.Hash)
 		if err != nil {
 			callback.HandleError(ctx, err)
 			return

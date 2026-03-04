@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -27,6 +29,7 @@ var (
 	ErrInvalidMIMEType = callback.NewBizError(callback.CodeBadRequest, "unsupported image type")
 	ErrClipNotFound    = callback.NewBizError(callback.CodeNotFound, "clip not found")
 	ErrNotImageClip    = callback.NewBizError(callback.CodeNotFound, "file not found")
+	ErrHashMismatch    = callback.NewBizError(callback.CodeBadRequest, "content hash mismatch")
 )
 
 // ClipService implements the core business logic for clip management.
@@ -53,7 +56,7 @@ func (s *ClipService) ValidateTTL(requested time.Duration) time.Duration {
 }
 
 // CreateText creates a text clip after validating content constraints.
-func (s *ClipService) CreateText(content string, ttl time.Duration) (*model.Clip, error) {
+func (s *ClipService) CreateText(content string, ttl time.Duration, clientHash string) (*model.Clip, error) {
 	if len(content) == 0 {
 		return nil, ErrEmptyContent
 	}
@@ -62,9 +65,15 @@ func (s *ClipService) CreateText(content string, ttl time.Duration) (*model.Clip
 	}
 
 	now := time.Now()
+	hash := sha256.Sum256([]byte(content))
+	hashHex := hex.EncodeToString(hash[:])
+	if clientHash != "" && clientHash != hashHex {
+		return nil, ErrHashMismatch
+	}
 	clip := &model.Clip{
 		ID:        uuid.New().String(),
 		Type:      model.ClipTypeText,
+		Hash:      hashHex,
 		Content:   content,
 		ExpiresAt: now.Add(s.ValidateTTL(ttl)),
 		CreatedAt: now,
@@ -79,7 +88,7 @@ func (s *ClipService) CreateText(content string, ttl time.Duration) (*model.Clip
 }
 
 // CreateImage creates an image clip, saving the file to disk with rollback on failure.
-func (s *ClipService) CreateImage(file *multipart.FileHeader, ttl time.Duration) (*model.Clip, error) {
+func (s *ClipService) CreateImage(file *multipart.FileHeader, ttl time.Duration, clientHash string) (*model.Clip, error) {
 	if file.Size > s.config.MaxFileSize {
 		return nil, ErrFileTooLarge
 	}
@@ -102,9 +111,20 @@ func (s *ClipService) CreateImage(file *multipart.FileHeader, ttl time.Duration)
 
 	diskName := id + ext
 	now := time.Now()
+
+	// Compute file hash
+	fileHash, err := hashMultipartFile(file)
+	if err != nil {
+		return nil, fmt.Errorf("compute file hash: %w", err)
+	}
+	if clientHash != "" && clientHash != fileHash {
+		return nil, ErrHashMismatch
+	}
+
 	clip := &model.Clip{
 		ID:        id,
 		Type:      model.ClipTypeImage,
+		Hash:      fileHash,
 		FileName:  file.Filename,
 		DiskName:  diskName,
 		FileSize:  file.Size,
@@ -202,4 +222,19 @@ func saveUploadedFile(file *multipart.FileHeader, dst string) error {
 
 	_, err = io.Copy(out, src)
 	return err
+}
+
+// hashMultipartFile computes the SHA-256 hash of a multipart file.
+func hashMultipartFile(file *multipart.FileHeader) (string, error) {
+	src, err := file.Open()
+	if err != nil {
+		return "", err
+	}
+	defer src.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, src); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }

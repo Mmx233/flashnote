@@ -11,17 +11,19 @@ import ActionBar from '@/components/ActionBar';
 import ClipList from '@/components/ClipList';
 import type { Clip, ImageClip } from '@/types';
 
-function checkTextDuplicate(text: string): boolean {
-  return useAppStore.getState().clips.some(
-    (c) => c.type === 'text' && c.content === text,
-  );
+async function hashBlob(blob: Blob): Promise<string> {
+  const buffer = await blob.arrayBuffer();
+  const hash = await crypto.subtle.digest('SHA-256', buffer);
+  return Array.from(new Uint8Array(hash)).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-function checkImageDuplicate(file: Blob): boolean {
-  if (!(file instanceof File)) return false;
-  const name = file.name;
+async function hashText(text: string): Promise<string> {
+  return hashBlob(new Blob([text]));
+}
+
+function checkDuplicate(hash: string, size?: number): boolean {
   return useAppStore.getState().clips.some(
-    (c) => c.type === 'image' && c.fileSize === file.size && c.fileName === name,
+    (c) => c.hash === hash && (size === undefined || ('fileSize' in c && c.fileSize === size)),
   );
 }
 
@@ -54,11 +56,13 @@ function AppContent() {
 
   const uploadImage = useCallback(
     async (file: Blob) => {
-      if (checkImageDuplicate(file) && !(await confirmDuplicate())) return;
+      const hash = await hashBlob(file);
+      if (checkDuplicate(hash, file.size) && !(await confirmDuplicate())) return;
       const form = new FormData();
       form.append('type', 'image');
       form.append('file', file);
       form.append('ttl', ttl);
+      form.append('hash', hash);
       setLoading(true);
       try {
         await api.post('/clips', form);
@@ -93,10 +97,11 @@ function AppContent() {
       message.info('Clipboard is empty');
       return;
     }
-    if (checkTextDuplicate(text) && !(await confirmDuplicate())) return;
+    const textHash = await hashText(text);
+    if (checkDuplicate(textHash) && !(await confirmDuplicate())) return;
     setLoading(true);
     try {
-      await api.post('/clips', { type: 'text', content: text, ttl });
+      await api.post('/clips', { type: 'text', content: text, ttl, hash: textHash });
       message.success('Text saved');
     } catch {
       message.error('Save failed');
@@ -122,9 +127,10 @@ function AppContent() {
         message.info('Clipboard is empty');
         return;
       }
-      if (checkTextDuplicate(text) && !(await confirmDuplicate())) return;
+      const pasteHash = await hashText(text);
+      if (checkDuplicate(pasteHash) && !(await confirmDuplicate())) return;
       setLoading(true);
-      await api.post('/clips', { type: 'text', content: text, ttl });
+      await api.post('/clips', { type: 'text', content: text, ttl, hash: pasteHash });
       message.success('Text saved');
     } catch {
       message.error('Paste failed');
