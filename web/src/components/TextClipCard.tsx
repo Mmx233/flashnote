@@ -41,7 +41,7 @@ export default function TextClipCard({ clip, onCopy, onDelete, disabled }: TextC
           {overflows && (
             <button
               onClick={() => setOpen(true)}
-              className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 px-2 text-xs text-gray-400 hover:text-blue-500 bg-white dark:bg-gray-900 transition-colors"
+              className="absolute left-1/2 -translate-x-1/2 -translate-y-1/2 px-2 text-xs font-bold text-gray-400 hover:text-blue-500 bg-white dark:bg-gray-900 transition-colors"
             >
               · · · · · ·
             </button>

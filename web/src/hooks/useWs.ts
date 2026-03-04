@@ -44,7 +44,7 @@ export default function useWs() {
 
     ws.onopen = () => {
       useAppStore.getState().resetClips();
-      useAppStore.setState({ connected: true, reconnecting: false });
+      useAppStore.setState({ connected: true, reconnecting: false, sleeping: false });
     };
 
     ws.onmessage = (event) => {
@@ -111,6 +111,7 @@ export default function useWs() {
       wsRef.current.close();
       wsRef.current = null;
     }
+    useAppStore.setState({ sleeping: true });
   }, blurDelay);
 
   const handleFocus = useCallback(() => {

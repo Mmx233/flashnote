@@ -4,6 +4,7 @@ import type { Clip, ServerLimits } from '@/types';
 interface AppState {
   connected: boolean;
   reconnecting: boolean;
+  sleeping: boolean;
   limits: ServerLimits | null;
   clips: Clip[];
   clipsReady: boolean;
@@ -24,6 +25,7 @@ interface AppState {
 const useAppStore = create<AppState>((set) => ({
   connected: false,
   reconnecting: false,
+  sleeping: false,
   limits: null,
   clips: [],
   clipsReady: false,

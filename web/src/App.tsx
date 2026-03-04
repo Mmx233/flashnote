@@ -46,6 +46,7 @@ function AppContent() {
 
   const connected = useAppStore((s) => s.connected);
   const reconnecting = useAppStore((s) => s.reconnecting);
+  const sleeping = useAppStore((s) => s.sleeping);
   const limits = useAppStore((s) => s.limits);
   const clips = useAppStore((s) => s.clips);
   const clipsReady = useAppStore((s) => s.clipsReady);
@@ -199,12 +200,12 @@ function AppContent() {
     <div className="max-w-3xl mx-auto p-4">
       {!connected && limits && (
         <div className="mb-4 p-3 bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 rounded-lg text-center text-sm">
-          Connection lost. Reconnecting…
+          ⚠️ Connection lost. Reconnecting…
         </div>
       )}
 
-      <div className={`mb-4 text-center text-sm pointer-events-none transition-opacity duration-500 ${reconnecting && connected ? 'opacity-100 animate-pulse text-gray-400 dark:text-gray-500' : 'opacity-0'}`}>
-        Reconnecting…
+      <div className={`mb-4 text-center text-sm pointer-events-none transition-opacity duration-500 ${sleeping ? 'opacity-100 text-gray-400 dark:text-gray-500' : reconnecting && connected ? 'opacity-100 animate-pulse text-gray-400 dark:text-gray-500' : 'opacity-0'}`}>
+        {sleeping ? '😴 Paused — will reconnect on focus' : '🔄 Reconnecting…'}
       </div>
 
       {!limits ? (
