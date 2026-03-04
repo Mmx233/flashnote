@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { ConfigProvider, theme, message, Skeleton } from 'antd';
+import { ConfigProvider, theme, App as AntApp, Skeleton } from 'antd';
 
 import useAppStore from '@/stores/useAppStore';
 import useDarkMode from '@/hooks/useDarkMode';
@@ -11,8 +11,8 @@ import ActionBar from '@/components/ActionBar';
 import ClipList from '@/components/ClipList';
 import type { Clip, ImageClip } from '@/types';
 
-function App() {
-  const isDark = useDarkMode();
+function AppContent() {
+  const { message } = AntApp.useApp();
 
   const connected = useAppStore((s) => s.connected);
   const reconnecting = useAppStore((s) => s.reconnecting);
@@ -40,7 +40,7 @@ function App() {
         setLoading(false);
       }
     },
-    [ttl],
+    [ttl, message],
   );
 
   useWs();
@@ -86,7 +86,7 @@ function App() {
     } finally {
       setLoading(false);
     }
-  }, [ttl, loading, connected]);
+  }, [ttl, loading, connected, message]);
 
   const handleSelectImage = useCallback(
     async (file: File) => {
@@ -109,7 +109,7 @@ function App() {
     } catch {
       message.error('Copy failed');
     }
-  }, []);
+  }, [message]);
 
   const handleDownload = useCallback((clip: ImageClip) => {
     const link = document.createElement('a');
@@ -132,7 +132,7 @@ function App() {
     } catch {
       message.error('Share failed');
     }
-  }, []);
+  }, [message]);
 
   const handleDelete = useCallback(async (id: string) => {
     try {
@@ -140,54 +140,62 @@ function App() {
     } catch {
       message.error('Delete failed');
     }
-  }, []);
+  }, [message]);
 
   const disabled = !connected;
+
+  return (
+    <div className="max-w-2xl mx-auto p-4">
+      {!connected && limits && (
+        <div className="mb-4 p-3 bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 rounded-lg text-center text-sm">
+          Connection lost. Reconnecting…
+        </div>
+      )}
+
+      <div className={`mb-4 text-center text-sm pointer-events-none transition-opacity duration-500 ${reconnecting && connected ? 'opacity-100 animate-pulse text-gray-400 dark:text-gray-500' : 'opacity-0'}`}>
+        Reconnecting…
+      </div>
+
+      {!limits ? (
+        <Skeleton.Button active block style={{ height: 40, marginBottom: 16 }} />
+      ) : (
+        <ActionBar
+          ttl={ttl}
+          ttlOptions={limits.ttlOptions}
+          onTTLChange={setTTL}
+          onPasteText={handlePasteText}
+          onSelectImage={handleSelectImage}
+          loading={loading}
+          disabled={disabled}
+        />
+      )}
+
+      {!clipsReady ? (
+        <Skeleton active paragraph={{ rows: 4 }} />
+      ) : (
+        <ClipList
+          clips={clips}
+          onDelete={handleDelete}
+          onCopy={handleCopy}
+          onDownload={handleDownload}
+          onShare={handleShare}
+          disabled={disabled}
+        />
+      )}
+    </div>
+  );
+}
+
+export default function App() {
+  const isDark = useDarkMode();
 
   return (
     <ConfigProvider
       theme={{ algorithm: isDark ? theme.darkAlgorithm : theme.defaultAlgorithm }}
     >
-      <div className="max-w-2xl mx-auto p-4">
-        {!connected && limits && (
-          <div className="mb-4 p-3 bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 rounded-lg text-center text-sm">
-            Connection lost. Reconnecting…
-          </div>
-        )}
-
-        <div className={`mb-4 text-center text-sm pointer-events-none transition-opacity duration-500 ${reconnecting && connected ? 'opacity-100 animate-pulse text-gray-400 dark:text-gray-500' : 'opacity-0'}`}>
-          Reconnecting…
-        </div>
-
-        {!limits ? (
-          <Skeleton.Button active block style={{ height: 40, marginBottom: 16 }} />
-        ) : (
-          <ActionBar
-            ttl={ttl}
-            ttlOptions={limits.ttlOptions}
-            onTTLChange={setTTL}
-            onPasteText={handlePasteText}
-            onSelectImage={handleSelectImage}
-            loading={loading}
-            disabled={disabled}
-          />
-        )}
-
-        {!clipsReady ? (
-          <Skeleton active paragraph={{ rows: 4 }} />
-        ) : (
-          <ClipList
-            clips={clips}
-            onDelete={handleDelete}
-            onCopy={handleCopy}
-            onDownload={handleDownload}
-            onShare={handleShare}
-            disabled={disabled}
-          />
-        )}
-      </div>
+      <AntApp>
+        <AppContent />
+      </AntApp>
     </ConfigProvider>
   );
 }
-
-export default App;
