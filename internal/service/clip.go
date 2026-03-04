@@ -129,11 +129,6 @@ func (s *ClipService) CreateImage(file *multipart.FileHeader, ttl time.Duration)
 	return clip, nil
 }
 
-// List returns a paginated list of clips.
-func (s *ClipService) List(page, size int) ([]*model.Clip, int64) {
-	return s.store.List(page, size)
-}
-
 // GetFilePath returns the on-disk path for an image clip's file.
 func (s *ClipService) GetFilePath(id string) (string, string, error) {
 	clip, ok := s.store.Get(id)

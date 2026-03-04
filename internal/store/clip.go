@@ -147,28 +147,6 @@ func (s *ClipStore) Get(id string) (*model.Clip, bool) {
 	return clip, ok
 }
 
-// List returns a page of clips from the in-memory sorted slice along with the total count.
-// page is 1-based; size is the number of items per page.
-func (s *ClipStore) List(page, size int) ([]*model.Clip, int64) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	total := int64(len(s.sorted))
-	start := (page - 1) * size
-	if start >= len(s.sorted) {
-		return nil, total
-	}
-	end := start + size
-	if end > len(s.sorted) {
-		end = len(s.sorted)
-	}
-
-	// Return a copy of the slice to avoid data races after releasing the lock
-	result := make([]*model.Clip, end-start)
-	copy(result, s.sorted[start:end])
-	return result, total
-}
-
 // ListAll returns all clips from the in-memory sorted slice.
 func (s *ClipStore) ListAll() []*model.Clip {
 	s.mu.RLock()

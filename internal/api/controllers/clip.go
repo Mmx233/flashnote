@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"strconv"
 	"time"
 
 	"github.com/Mmx233/flashnote/internal/api/callback"
@@ -62,27 +61,6 @@ func (c *ClipController) Create(ctx *gin.Context) {
 		}
 		callback.Success(ctx, clip)
 	}
-}
-
-// List returns a paginated list of clips.
-// GET /api/clips?page=1&size=20
-func (c *ClipController) List(ctx *gin.Context) {
-	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
-	size, _ := strconv.Atoi(ctx.DefaultQuery("size", "20"))
-	if page < 1 {
-		page = 1
-	}
-	if size < 1 {
-		size = 20
-	}
-
-	clips, total := c.service.List(page, size)
-	callback.Success(ctx, gin.H{
-		"clips": clips,
-		"total": total,
-		"page":  page,
-		"size":  size,
-	})
 }
 
 // GetFile serves an image clip's file inline or as a download.

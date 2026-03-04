@@ -22,13 +22,6 @@ export interface ImageClip extends ClipBase {
 // Discriminated union
 export type Clip = TextClip | ImageClip;
 
-export interface ClipListResponse {
-  clips: Clip[];
-  total: number;
-  page: number;
-  size: number;
-}
-
 export interface ApiResponse<T = unknown> {
   code: number;
   msg: string;

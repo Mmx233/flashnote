@@ -13,7 +13,6 @@ func Register(r *gin.Engine, clipCtrl *controllers.ClipController, hub *ws.Hub) 
 		clips := api.Group("/clips")
 		{
 			clips.POST("", clipCtrl.Create)
-			clips.GET("", clipCtrl.List)
 			clips.GET("/:id/file", clipCtrl.GetFile)
 			clips.DELETE("/:id", clipCtrl.Delete)
 		}
