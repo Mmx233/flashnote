@@ -113,6 +113,13 @@ func (s *ClipStore) Load() error {
 // Save persists clip metadata as {id}.json and inserts it into the in-memory index
 // maintaining descending CreatedAt order.
 func (s *ClipStore) Save(clip *model.Clip) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, exists := s.clips[clip.ID]; exists {
+		return fmt.Errorf("clip %s already exists", clip.ID)
+	}
+
 	data, err := json.MarshalIndent(clip, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal clip: %w", err)
@@ -122,9 +129,6 @@ func (s *ClipStore) Save(clip *model.Clip) error {
 	if err := os.WriteFile(path, data, 0o644); err != nil {
 		return fmt.Errorf("write clip file: %w", err)
 	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	s.clips[clip.ID] = clip
 
