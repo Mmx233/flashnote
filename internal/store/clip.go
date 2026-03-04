@@ -169,6 +169,16 @@ func (s *ClipStore) List(page, size int) ([]*model.Clip, int64) {
 	return result, total
 }
 
+// ListAll returns all clips from the in-memory sorted slice.
+func (s *ClipStore) ListAll() []*model.Clip {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	result := make([]*model.Clip, len(s.sorted))
+	copy(result, s.sorted)
+	return result
+}
+
 // Remove deletes the {id}.json metadata file and the image file (if ImageClip),
 // then removes the clip from the in-memory index.
 func (s *ClipStore) Remove(id string) error {

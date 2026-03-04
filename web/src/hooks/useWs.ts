@@ -17,14 +17,12 @@ const PING = JSON.stringify({ type: 'ping' });
  * - Blur disconnect after server-configured timeout (via useTimeout)
  * - Focus/blur lifecycle via window focus/blur events
  */
-export default function useWs(onReconnect: () => void) {
+export default function useWs() {
   const connected = useAppStore((s) => s.connected);
   const heartbeatInterval = useAppStore((s) => s.limits?.heartbeatInterval ?? 30);
   const blurDisconnectTimeout = useAppStore((s) => s.limits?.blurDisconnectTimeout ?? 300);
 
   const wsRef = useRef<WebSocket | null>(null);
-  const onReconnectRef = useRef(onReconnect);
-  onReconnectRef.current = onReconnect;
 
   const [reconnectDelay, setReconnectDelay] = useState<number | null>(null);
   const [blurDelay, setBlurDelay] = useState<number | null>(null);
@@ -44,11 +42,15 @@ export default function useWs(onReconnect: () => void) {
     const ws = new WebSocket(url);
     wsRef.current = ws;
 
-    ws.onopen = () => useAppStore.setState({ connected: true, reconnecting: false });
+    ws.onopen = () => {
+      useAppStore.getState().resetClips();
+      useAppStore.setState({ connected: true, reconnecting: false });
+    };
 
     ws.onmessage = (event) => {
       try {
         const msg: WSMessage = JSON.parse(event.data);
+        const state = useAppStore.getState();
         switch (msg.type) {
           case 'config': {
             const cfg = msg.data as ServerLimits;
@@ -56,11 +58,22 @@ export default function useWs(onReconnect: () => void) {
             ws.send(PING);
             break;
           }
-          case 'clip:created':
-            useAppStore.getState().prependClip(msg.data as Clip);
+          case 'clip:created': {
+            const clip = msg.data as Clip;
+            if (state.clipsReady) {
+              if (!state.clips.some((c) => c.id === clip.id)) {
+                state.prependClip(clip);
+              }
+            } else {
+              state.bufferClip(clip);
+            }
+            break;
+          }
+          case 'clip:list':
+            state.flushPending(msg.data as Clip[]);
             break;
           case 'clip:expired':
-            useAppStore.getState().removeClip((msg.data as { id: string }).id);
+            state.removeClip((msg.data as { id: string }).id);
             break;
         }
       } catch {
@@ -88,7 +101,6 @@ export default function useWs(onReconnect: () => void) {
   useTimeout(() => {
     setReconnectDelay(null);
     connect();
-    onReconnectRef.current();
   }, reconnectDelay);
 
   // --- blur disconnect timer ---
@@ -107,7 +119,6 @@ export default function useWs(onReconnect: () => void) {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
       useAppStore.setState({ reconnecting: true });
       connect();
-      onReconnectRef.current();
     }
   }, [connect]);
 

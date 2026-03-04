@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { ConfigProvider, theme, message, Skeleton } from 'antd';
 
 import useAppStore from '@/stores/useAppStore';
@@ -9,7 +9,7 @@ import api from '@/api';
 
 import ActionBar from '@/components/ActionBar';
 import ClipList from '@/components/ClipList';
-import type { Clip, ImageClip, ClipListResponse } from '@/types';
+import type { Clip, ImageClip } from '@/types';
 
 function App() {
   const isDark = useDarkMode();
@@ -18,9 +18,9 @@ function App() {
   const reconnecting = useAppStore((s) => s.reconnecting);
   const limits = useAppStore((s) => s.limits);
   const clips = useAppStore((s) => s.clips);
+  const clipsReady = useAppStore((s) => s.clipsReady);
   const ttl = useAppStore((s) => s.ttl);
   const setTTL = useAppStore((s) => s.setTTL);
-  const setClips = useAppStore((s) => s.setClips);
 
   const [loading, setLoading] = useState(false);
 
@@ -43,20 +43,7 @@ function App() {
     [ttl],
   );
 
-  const fetchClips = useCallback(async () => {
-    try {
-      const res = await api.get<{ code: number; data: ClipListResponse }>('/clips');
-      setClips(res.data.data.clips || []);
-    } catch {
-      // silent
-    }
-  }, [setClips]);
-
-  useWs(fetchClips);
-
-  useEffect(() => {
-    fetchClips();
-  }, [fetchClips]);
+  useWs();
 
   useEventListener('paste', async (e) => {
     if (loading || !connected) return;
@@ -173,30 +160,30 @@ function App() {
         </div>
 
         {!limits ? (
-          <>
-            <Skeleton.Button active block style={{ height: 40, marginBottom: 16 }} />
-            <Skeleton active paragraph={{ rows: 4 }} />
-          </>
+          <Skeleton.Button active block style={{ height: 40, marginBottom: 16 }} />
         ) : (
-          <>
-            <ActionBar
-              ttl={ttl}
-              ttlOptions={limits.ttlOptions}
-              onTTLChange={setTTL}
-              onPasteText={handlePasteText}
-              onSelectImage={handleSelectImage}
-              loading={loading}
-              disabled={disabled}
-            />
-            <ClipList
-              clips={clips}
-              onDelete={handleDelete}
-              onCopy={handleCopy}
-              onDownload={handleDownload}
-              onShare={handleShare}
-              disabled={disabled}
-            />
-          </>
+          <ActionBar
+            ttl={ttl}
+            ttlOptions={limits.ttlOptions}
+            onTTLChange={setTTL}
+            onPasteText={handlePasteText}
+            onSelectImage={handleSelectImage}
+            loading={loading}
+            disabled={disabled}
+          />
+        )}
+
+        {!clipsReady ? (
+          <Skeleton active paragraph={{ rows: 4 }} />
+        ) : (
+          <ClipList
+            clips={clips}
+            onDelete={handleDelete}
+            onCopy={handleCopy}
+            onDownload={handleDownload}
+            onShare={handleShare}
+            disabled={disabled}
+          />
         )}
       </div>
     </ConfigProvider>

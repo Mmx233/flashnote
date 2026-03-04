@@ -47,6 +47,6 @@ export interface ServerLimits {
 
 // WebSocket message types
 export interface WSMessage {
-  type: 'config' | 'clip:created' | 'clip:expired';
-  data: ServerLimits | Clip | { id: string };
+  type: 'config' | 'clip:created' | 'clip:expired' | 'clip:list';
+  data: ServerLimits | Clip | { id: string } | Clip[];
 }

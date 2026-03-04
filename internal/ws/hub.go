@@ -22,6 +22,7 @@ const (
 	MsgConfig     = "config"
 	MsgClipCreate = "clip:created"
 	MsgClipExpire = "clip:expired"
+	MsgClipList   = "clip:list"
 	MsgPing       = "ping"
 )
 
@@ -31,6 +32,9 @@ type Message struct {
 	Data interface{} `json:"data"`
 }
 
+// ClipListProvider is a function that returns all current clips.
+type ClipListProvider func() interface{}
+
 // Hub manages all active WebSocket clients and broadcasts messages to them.
 type Hub struct {
 	mu             sync.RWMutex
@@ -38,6 +42,7 @@ type Hub struct {
 	limits         config.ServerLimits
 	readTimeout    time.Duration
 	sendBufferSize int
+	clipList       ClipListProvider
 }
 
 // NewHub creates a Hub with the given server limits, read timeout, and send buffer size.
@@ -48,6 +53,11 @@ func NewHub(limits config.ServerLimits, readTimeout time.Duration, sendBufferSiz
 		readTimeout:    readTimeout,
 		sendBufferSize: sendBufferSize,
 	}
+}
+
+// SetClipListProvider sets the function used to retrieve the current clip list.
+func (h *Hub) SetClipListProvider(fn ClipListProvider) {
+	h.clipList = fn
 }
 
 // Register adds a client to the hub.
@@ -122,6 +132,13 @@ func (h *Hub) HandleWS(ctx *gin.Context) {
 
 	h.Register(client)
 
+	// Set initial read deadline
+	conn.SetReadDeadline(time.Now().Add(h.readTimeout))
+
+	// Start pumps immediately so queued messages are delivered
+	go client.WritePump()
+	go client.ReadPump()
+
 	// Send config as the first message
 	configMsg := &Message{Type: MsgConfig, Data: h.limits}
 	configData, err := json.Marshal(configMsg)
@@ -131,9 +148,15 @@ func (h *Hub) HandleWS(ctx *gin.Context) {
 		client.send <- configData
 	}
 
-	// Set initial read deadline
-	conn.SetReadDeadline(time.Now().Add(h.readTimeout))
-
-	go client.WritePump()
-	go client.ReadPump()
+	// Send current clip list (client is already registered, so any
+	// clip:created broadcast racing with this will also be delivered)
+	if h.clipList != nil {
+		listMsg := &Message{Type: MsgClipList, Data: h.clipList()}
+		listData, err := json.Marshal(listMsg)
+		if err != nil {
+			log.Errorf("failed to marshal clip list message: %v", err)
+		} else {
+			client.send <- listData
+		}
+	}
 }

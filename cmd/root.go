@@ -37,6 +37,9 @@ var rootCmd = &cobra.Command{
 
 		// Create WebSocket Hub
 		hub := ws.NewHub(cfg.Limits(), cfg.WSReadTimeout, cfg.WSSendBufferSize)
+		hub.SetClipListProvider(func() interface{} {
+			return clipStore.ListAll()
+		})
 
 		// Create ClipService and start expiry cleaner
 		clipService := service.NewClipService(clipStore, hub, cfg)

@@ -1,20 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useSyncExternalStore } from 'react';
+
+const mq = window.matchMedia('(prefers-color-scheme: dark)');
+
+function subscribe(cb: () => void) {
+  mq.addEventListener('change', cb);
+  return () => mq.removeEventListener('change', cb);
+}
+
+function getSnapshot() {
+  const dark = mq.matches;
+  document.documentElement.classList.toggle('dark', dark);
+  return dark;
+}
 
 export default function useDarkMode(): boolean {
-  const [isDark, setIsDark] = useState(
-    () => window.matchMedia('(prefers-color-scheme: dark)').matches,
-  );
-
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = (e: MediaQueryListEvent) => setIsDark(e.matches);
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, []);
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', isDark);
-  }, [isDark]);
-
-  return isDark;
+  return useSyncExternalStore(subscribe, getSnapshot);
 }
