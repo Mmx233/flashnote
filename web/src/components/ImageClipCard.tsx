@@ -41,6 +41,11 @@ export default function ImageClipCard({
           src={fileUrl}
           alt={clip.fileName}
           className="max-h-52 rounded-md object-contain"
+          placeholder={
+            <div className="flex items-center justify-center h-52 w-full text-gray-400 text-xs animate-pulse">
+              Loading…
+            </div>
+          }
           preview={{
             src: fileUrl,
             toolbarRender: (originalNode) => (

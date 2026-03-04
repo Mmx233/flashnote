@@ -1,4 +1,5 @@
 import { Empty } from 'antd';
+import { AnimatePresence, motion } from 'motion/react';
 import type { Clip, ImageClip } from '@/types';
 import TextClipCard from './TextClipCard';
 import ImageClipCard from './ImageClipCard';
@@ -26,27 +27,39 @@ export default function ClipList({
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      {clips.map((clip) =>
-        clip.type === 'text' ? (
-          <TextClipCard
+      <AnimatePresence>
+        {clips.map((clip, i) => (
+          <motion.div
             key={clip.id}
-            clip={clip}
-            onCopy={() => onCopy(clip)}
-            onDelete={() => onDelete(clip.id)}
-            disabled={disabled}
-          />
-        ) : (
-          <ImageClipCard
-            key={clip.id}
-            clip={clip}
-            onCopy={() => onCopy(clip)}
-            onDownload={() => onDownload(clip)}
-            onShare={() => onShare(clip)}
-            onDelete={() => onDelete(clip.id)}
-            disabled={disabled}
-          />
-        ),
-      )}
+            layout
+            initial={{ opacity: 0.75, scale: 0.97, y: 12 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{
+              layout: { duration: 0.15 },
+              duration: 0.2,
+              delay: i * 0.03,
+            }}
+          >
+            {clip.type === 'text' ? (
+              <TextClipCard
+                clip={clip}
+                onCopy={() => onCopy(clip)}
+                onDelete={() => onDelete(clip.id)}
+                disabled={disabled}
+              />
+            ) : (
+              <ImageClipCard
+                clip={clip}
+                onCopy={() => onCopy(clip)}
+                onDownload={() => onDownload(clip)}
+                onShare={() => onShare(clip)}
+                onDelete={() => onDelete(clip.id)}
+                disabled={disabled}
+              />
+            )}
+          </motion.div>
+        ))}
+      </AnimatePresence>
     </div>
   );
 }
