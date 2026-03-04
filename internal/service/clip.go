@@ -2,30 +2,31 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"io"
 	"mime/multipart"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/Mmx233/flashnote/internal/api/callback"
 	"github.com/Mmx233/flashnote/internal/config"
 	"github.com/Mmx233/flashnote/internal/model"
 	"github.com/Mmx233/flashnote/internal/store"
 	"github.com/Mmx233/flashnote/internal/util"
 	"github.com/Mmx233/flashnote/internal/ws"
-	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 )
 
 var (
-	ErrEmptyContent    = errors.New("content is empty")
-	ErrTextTooLarge    = errors.New("text content exceeds maximum size")
-	ErrFileTooLarge    = errors.New("file exceeds maximum size")
-	ErrInvalidMIMEType = errors.New("unsupported MIME type")
-	ErrClipNotFound    = errors.New("clip not found")
-	ErrNotImageClip    = errors.New("clip is not an image")
+	ErrEmptyContent    = callback.NewBizError(callback.CodeBadRequest, "content is empty")
+	ErrTextTooLarge    = callback.NewBizError(callback.CodeFileTooLarge, "text content exceeds maximum size")
+	ErrFileTooLarge    = callback.NewBizError(callback.CodeFileTooLarge, "file exceeds maximum size")
+	ErrInvalidMIMEType = callback.NewBizError(callback.CodeBadRequest, "unsupported image type")
+	ErrClipNotFound    = callback.NewBizError(callback.CodeNotFound, "clip not found")
+	ErrNotImageClip    = callback.NewBizError(callback.CodeNotFound, "file not found")
 )
 
 // ClipService implements the core business logic for clip management.
@@ -118,7 +119,7 @@ func (s *ClipService) CreateImage(file *multipart.FileHeader, ttl time.Duration)
 	}
 
 	dst := filepath.Join(s.store.StorePath(), diskName)
-	if err := gin.SaveUploadedFile(file, dst); err != nil {
+	if err := saveUploadedFile(file, dst); err != nil {
 		// Rollback: remove the metadata we just persisted
 		s.store.Remove(id)
 		return nil, fmt.Errorf("save image file: %w", err)
@@ -189,3 +190,21 @@ func (s *ClipService) StartCleaner(ctx context.Context) {
 	}()
 }
 
+
+// saveUploadedFile saves a multipart file to the given destination path.
+func saveUploadedFile(file *multipart.FileHeader, dst string) error {
+	src, err := file.Open()
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, src)
+	return err
+}
