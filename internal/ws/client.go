@@ -1,7 +1,6 @@
 package ws
 
 import (
-	"encoding/json"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -18,7 +17,6 @@ type Client struct {
 
 // ReadPump reads messages from the WebSocket connection.
 // On each received message it resets the read deadline.
-// When a "ping" message is received it responds with "pong".
 // When the connection closes or the read deadline expires, it unregisters from the Hub.
 func (c *Client) ReadPump() {
 	defer func() {
@@ -27,7 +25,7 @@ func (c *Client) ReadPump() {
 	}()
 
 	for {
-		_, data, err := c.conn.ReadMessage()
+		_, _, err := c.conn.ReadMessage()
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
 				log.Warnf("websocket read error: %v", err)
@@ -35,26 +33,8 @@ func (c *Client) ReadPump() {
 			return
 		}
 
-		// Reset read deadline on every received message
+		// Reset read deadline on every received message (including ping)
 		c.conn.SetReadDeadline(time.Now().Add(c.readTimeout))
-
-		// Parse message to check for ping
-		var msg Message
-		if err := json.Unmarshal(data, &msg); err != nil {
-			continue
-		}
-
-		if msg.Type == MsgPing {
-			pong := &Message{Type: MsgPong, Data: nil}
-			pongData, err := json.Marshal(pong)
-			if err != nil {
-				continue
-			}
-			select {
-			case c.send <- pongData:
-			default:
-			}
-		}
 	}
 }
 

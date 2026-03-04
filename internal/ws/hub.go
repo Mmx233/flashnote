@@ -23,7 +23,6 @@ const (
 	MsgClipCreate = "clip:created"
 	MsgClipExpire = "clip:expired"
 	MsgPing       = "ping"
-	MsgPong       = "pong"
 )
 
 // Message is the envelope for all WebSocket messages.

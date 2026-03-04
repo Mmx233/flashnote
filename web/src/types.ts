@@ -42,10 +42,11 @@ export interface ServerLimits {
   ttlOptions: string[];
   defaultTTL: string;
   blurDisconnectTimeout: number; // seconds
+  heartbeatInterval: number; // seconds
 }
 
 // WebSocket message types
 export interface WSMessage {
-  type: 'config' | 'clip:created' | 'clip:expired' | 'pong';
+  type: 'config' | 'clip:created' | 'clip:expired';
   data: ServerLimits | Clip | { id: string };
 }
