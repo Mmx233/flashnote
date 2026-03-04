@@ -13,3 +13,6 @@ ttlOptions:
   - "24h"
 cleanupInterval: "1m"
 blurDisconnectTimeout: "5m"
+wsReadTimeout: "60s"
+wsHeartbeatInterval: "30s"
+wsSendBufferSize: 256

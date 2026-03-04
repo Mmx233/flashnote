@@ -20,6 +20,9 @@ type ServerConfig struct {
 	TTLOptions            []string      `yaml:"ttlOptions"`
 	CleanupInterval       time.Duration `yaml:"-"`
 	BlurDisconnectTimeout time.Duration `yaml:"-"`
+	WSReadTimeout         time.Duration `yaml:"-"`
+	WSHeartbeatInterval   time.Duration `yaml:"-"`
+	WSSendBufferSize      int           `yaml:"wsSendBufferSize"`
 }
 
 // rawConfig mirrors ServerConfig but uses strings for duration fields so yaml.v3 can parse them.
@@ -34,6 +37,9 @@ type rawConfig struct {
 	TTLOptions            []string `yaml:"ttlOptions"`
 	CleanupInterval       string   `yaml:"cleanupInterval"`
 	BlurDisconnectTimeout string   `yaml:"blurDisconnectTimeout"`
+	WSReadTimeout         string   `yaml:"wsReadTimeout"`
+	WSHeartbeatInterval   string   `yaml:"wsHeartbeatInterval"`
+	WSSendBufferSize      int      `yaml:"wsSendBufferSize"`
 }
 
 // ServerLimits is the subset of config exposed to the frontend via WebSocket.
@@ -43,6 +49,7 @@ type ServerLimits struct {
 	TTLOptions            []string `json:"ttlOptions"`
 	DefaultTTL            string   `json:"defaultTTL"`
 	BlurDisconnectTimeout int      `json:"blurDisconnectTimeout"` // seconds
+	HeartbeatInterval     int      `json:"heartbeatInterval"`     // seconds
 }
 
 // Limits returns the ServerLimits derived from this config.
@@ -53,6 +60,7 @@ func (c *ServerConfig) Limits() ServerLimits {
 		TTLOptions:            c.TTLOptions,
 		DefaultTTL:            formatDuration(c.DefaultTTL),
 		BlurDisconnectTimeout: int(c.BlurDisconnectTimeout.Seconds()),
+		HeartbeatInterval:     int(c.WSHeartbeatInterval.Seconds()),
 	}
 }
 
@@ -69,6 +77,9 @@ func Load(path string) (*ServerConfig, error) {
 		TTLOptions:            []string{"5m", "30m", "1h", "6h", "24h"},
 		CleanupInterval:       time.Minute,
 		BlurDisconnectTimeout: 5 * time.Minute,
+		WSReadTimeout:         60 * time.Second,
+		WSHeartbeatInterval:   30 * time.Second,
+		WSSendBufferSize:      256,
 	}
 
 	data, err := os.ReadFile(path)
@@ -132,6 +143,23 @@ func Load(path string) (*ServerConfig, error) {
 		} else {
 			return nil, fmt.Errorf("invalid blurDisconnectTimeout %q: %w", raw.BlurDisconnectTimeout, err)
 		}
+	}
+	if raw.WSReadTimeout != "" {
+		if d, err := time.ParseDuration(raw.WSReadTimeout); err == nil {
+			cfg.WSReadTimeout = d
+		} else {
+			return nil, fmt.Errorf("invalid wsReadTimeout %q: %w", raw.WSReadTimeout, err)
+		}
+	}
+	if raw.WSHeartbeatInterval != "" {
+		if d, err := time.ParseDuration(raw.WSHeartbeatInterval); err == nil {
+			cfg.WSHeartbeatInterval = d
+		} else {
+			return nil, fmt.Errorf("invalid wsHeartbeatInterval %q: %w", raw.WSHeartbeatInterval, err)
+		}
+	}
+	if raw.WSSendBufferSize > 0 {
+		cfg.WSSendBufferSize = raw.WSSendBufferSize
 	}
 
 	return cfg, nil
