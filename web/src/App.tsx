@@ -11,8 +11,36 @@ import ActionBar from '@/components/ActionBar';
 import ClipList from '@/components/ClipList';
 import type { Clip, ImageClip } from '@/types';
 
+function checkTextDuplicate(text: string): boolean {
+  return useAppStore.getState().clips.some(
+    (c) => c.type === 'text' && c.content === text,
+  );
+}
+
+function checkImageDuplicate(file: Blob): boolean {
+  if (!(file instanceof File)) return false;
+  const name = file.name;
+  return useAppStore.getState().clips.some(
+    (c) => c.type === 'image' && c.fileSize === file.size && c.fileName === name,
+  );
+}
+
 function AppContent() {
-  const { message } = AntApp.useApp();
+  const { message, modal } = AntApp.useApp();
+
+  const confirmDuplicate = useCallback((): Promise<boolean> => {
+    return new Promise((resolve) => {
+      modal.confirm({
+        title: 'Duplicate detected',
+        content: 'A similar clip already exists. Send anyway?',
+        okText: 'Send',
+        cancelText: 'Cancel',
+        maskClosable: true,
+        onOk: () => resolve(true),
+        onCancel: () => resolve(false),
+      });
+    });
+  }, [modal]);
 
   const connected = useAppStore((s) => s.connected);
   const reconnecting = useAppStore((s) => s.reconnecting);
@@ -26,6 +54,7 @@ function AppContent() {
 
   const uploadImage = useCallback(
     async (file: Blob) => {
+      if (checkImageDuplicate(file) && !(await confirmDuplicate())) return;
       const form = new FormData();
       form.append('type', 'image');
       form.append('file', file);
@@ -61,6 +90,7 @@ function AppContent() {
 
     const text = e.clipboardData?.getData('text/plain');
     if (text) {
+      if (checkTextDuplicate(text) && !(await confirmDuplicate())) return;
       setLoading(true);
       try {
         await api.post('/clips', { type: 'text', content: text, ttl });
@@ -78,6 +108,7 @@ function AppContent() {
     try {
       const text = await navigator.clipboard.readText();
       if (!text) return;
+      if (checkTextDuplicate(text) && !(await confirmDuplicate())) return;
       setLoading(true);
       await api.post('/clips', { type: 'text', content: text, ttl });
       message.success('Text saved');
