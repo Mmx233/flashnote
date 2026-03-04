@@ -24,9 +24,9 @@ export default function TextClipCard({ clip, onCopy, onDelete, disabled }: TextC
 
   return (
     <>
-      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
+      <div className="flex flex-col h-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
         <div
-          className={`relative ${overflows ? 'cursor-pointer' : ''}`}
+          className={`relative flex-1 ${overflows ? 'cursor-pointer' : ''}`}
           onClick={overflows ? () => setOpen(true) : undefined}
         >
           <pre
