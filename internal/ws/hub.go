@@ -1,6 +1,7 @@
 package ws
 
 import (
+	"container/list"
 	"encoding/json"
 	"net/http"
 	"sync"
@@ -67,17 +68,29 @@ func (h *Hub) Broadcast(msg *Message) {
 		return
 	}
 
-	h.mu.RLock()
-	defer h.mu.RUnlock()
+	slow := list.New()
+	func() {
+		h.mu.RLock()
+		defer h.mu.RUnlock()
+		for client := range h.clients {
+			select {
+			case client.send <- data:
+			default:
+				slow.PushBack(client)
+			}
+		}
+	}()
 
-	for client := range h.clients {
-		select {
-		case client.send <- data:
-		default:
-			// slow client — close connection so it reconnects and re-fetches full state
-			log.Warnf("kicking slow websocket client %s: send buffer full", client.conn.RemoteAddr())
-			delete(h.clients, client)
-			close(client.send)
+	if slow.Len() > 0 {
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		for e := slow.Front(); e != nil; e = e.Next() {
+			client := e.Value.(*Client)
+			if _, ok := h.clients[client]; ok {
+				log.Warnf("kicking slow websocket client %s: send buffer full", client.conn.RemoteAddr())
+				delete(h.clients, client)
+				close(client.send)
+			}
 		}
 	}
 }
