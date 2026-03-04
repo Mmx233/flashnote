@@ -1,6 +1,7 @@
 package store
 
 import (
+	"container/list"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -14,19 +15,32 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// clipEntry holds a clip pointer and its positions in both sorted lists.
+type clipEntry struct {
+	clip     *model.Clip
+	sortedEl *list.Element // position in byCreated (CreatedAt desc)
+	expiryEl *list.Element // position in byExpiry (ExpiresAt asc)
+}
+
 // ClipStore manages clip persistence on disk and an in-memory index for fast queries.
 type ClipStore struct {
-	mu        sync.RWMutex
-	clips     map[string]*model.Clip // keyed by ID
-	sorted    []*model.Clip          // sorted by CreatedAt desc
-	storePath string
+	mu          sync.RWMutex
+	clips       map[string]*clipEntry // keyed by ID
+	byCreated   *list.List            // CreatedAt desc, values are *model.Clip
+	byExpiry    *list.List            // ExpiresAt asc, values are *model.Clip
+	expiryTimer *time.Timer           // fires when the earliest clip expires; nil if no clips
+	expiryKick  chan struct{}          // closed by Save when a new clip becomes the earliest
+	storePath   string
 }
 
 // NewClipStore creates a ClipStore rooted at the given directory.
 func NewClipStore(storePath string) *ClipStore {
 	return &ClipStore{
-		clips:     make(map[string]*model.Clip),
-		storePath: storePath,
+		clips:      make(map[string]*clipEntry),
+		byCreated:  list.New(),
+		byExpiry:   list.New(),
+		expiryKick: make(chan struct{}),
+		storePath:  storePath,
 	}
 }
 
@@ -52,6 +66,9 @@ func (s *ClipStore) Load() error {
 
 	now := time.Now()
 	var expiredCount int
+
+	// Collect valid clips first, then sort and insert into list
+	var valid []*model.Clip
 
 	for _, entry := range entries {
 		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".json") {
@@ -90,14 +107,26 @@ func (s *ClipStore) Load() error {
 			}
 		}
 
-		s.clips[clip.ID] = &clip
-		s.sorted = append(s.sorted, &clip)
+		s.clips[clip.ID] = &clipEntry{clip: &clip}
+		valid = append(valid, &clip)
+	}
+
+	// Build byExpiry list (ExpiresAt ascending)
+	sort.Slice(valid, func(i, j int) bool {
+		return valid[i].ExpiresAt.Before(valid[j].ExpiresAt)
+	})
+	for _, clip := range valid {
+		s.clips[clip.ID].expiryEl = s.byExpiry.PushBack(clip)
 	}
 
 	// Sort by CreatedAt descending (newest first)
-	sort.Slice(s.sorted, func(i, j int) bool {
-		return s.sorted[i].CreatedAt.After(s.sorted[j].CreatedAt)
+	sort.Slice(valid, func(i, j int) bool {
+		return valid[i].CreatedAt.After(valid[j].CreatedAt)
 	})
+
+	for _, clip := range valid {
+		s.clips[clip.ID].sortedEl = s.byCreated.PushBack(clip)
+	}
 
 	if expiredCount > 0 {
 		log.Infof("cleaned up %d expired clips on startup", expiredCount)
@@ -126,15 +155,37 @@ func (s *ClipStore) Save(clip *model.Clip) error {
 		return fmt.Errorf("write clip file: %w", err)
 	}
 
-	s.clips[clip.ID] = clip
+	// Insert into byCreated list maintaining descending CreatedAt order
+	var elem *list.Element
+	for e := s.byCreated.Front(); e != nil; e = e.Next() {
+		if e.Value.(*model.Clip).CreatedAt.Before(clip.CreatedAt) {
+			elem = s.byCreated.InsertBefore(clip, e)
+			break
+		}
+	}
+	if elem == nil {
+		elem = s.byCreated.PushBack(clip)
+	}
 
-	// Insert into sorted slice maintaining descending CreatedAt order
-	idx := sort.Search(len(s.sorted), func(i int) bool {
-		return s.sorted[i].CreatedAt.Before(clip.CreatedAt)
-	})
-	s.sorted = append(s.sorted, nil)
-	copy(s.sorted[idx+1:], s.sorted[idx:])
-	s.sorted[idx] = clip
+	// Insert into byExpiry list maintaining ascending ExpiresAt order
+	var expiryEl *list.Element
+	for e := s.byExpiry.Back(); e != nil; e = e.Prev() {
+		if !e.Value.(*model.Clip).ExpiresAt.After(clip.ExpiresAt) {
+			expiryEl = s.byExpiry.InsertAfter(clip, e)
+			break
+		}
+	}
+	if expiryEl == nil {
+		expiryEl = s.byExpiry.PushFront(clip)
+	}
+
+	s.clips[clip.ID] = &clipEntry{clip: clip, sortedEl: elem, expiryEl: expiryEl}
+
+	// If this clip is now the earliest to expire, kick the cleaner to reschedule.
+	if s.byExpiry.Front() == expiryEl {
+		close(s.expiryKick)
+		s.expiryKick = make(chan struct{})
+	}
 
 	return nil
 }
@@ -143,17 +194,22 @@ func (s *ClipStore) Save(clip *model.Clip) error {
 func (s *ClipStore) Get(id string) (*model.Clip, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	clip, ok := s.clips[id]
-	return clip, ok
+	entry, ok := s.clips[id]
+	if !ok {
+		return nil, false
+	}
+	return entry.clip, true
 }
 
-// ListAll returns all clips from the in-memory sorted slice.
+// ListAll returns all clips from the in-memory byCreated list.
 func (s *ClipStore) ListAll() []*model.Clip {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	result := make([]*model.Clip, len(s.sorted))
-	copy(result, s.sorted)
+	result := make([]*model.Clip, 0, s.byCreated.Len())
+	for e := s.byCreated.Front(); e != nil; e = e.Next() {
+		result = append(result, e.Value.(*model.Clip))
+	}
 	return result
 }
 
@@ -161,54 +217,63 @@ func (s *ClipStore) ListAll() []*model.Clip {
 // then removes the clip from the in-memory index.
 func (s *ClipStore) Remove(id string) error {
 	s.mu.Lock()
-	clip, ok := s.clips[id]
+	entry, ok := s.clips[id]
 	if !ok {
 		s.mu.Unlock()
 		return fmt.Errorf("clip %s not found", id)
 	}
 
-	// Remove from map
+	// Remove from map and both lists (O(1))
 	delete(s.clips, id)
-
-	// Remove from sorted slice
-	for i, c := range s.sorted {
-		if c.ID == id {
-			s.sorted = append(s.sorted[:i], s.sorted[i+1:]...)
-			break
-		}
-	}
+	s.byCreated.Remove(entry.sortedEl)
+	s.byExpiry.Remove(entry.expiryEl)
 	s.mu.Unlock()
 
-	// Delete metadata file
-	jsonPath := filepath.Join(s.storePath, id+".json")
-	if err := os.Remove(jsonPath); err != nil && !os.IsNotExist(err) {
-		log.Warnf("failed to remove metadata file %s: %v", jsonPath, err)
-	}
-
-	// Delete image file if applicable
-	if clip.Type == model.ClipTypeImage && clip.DiskName != "" {
-		imgPath := filepath.Join(s.storePath, clip.DiskName)
-		if err := os.Remove(imgPath); err != nil && !os.IsNotExist(err) {
-			log.Warnf("failed to remove image file %s: %v", imgPath, err)
-		}
-	}
-
+	// Delete files outside lock
+	s.removeClipFiles(entry.clip)
 	return nil
 }
 
 // ExpiredClips returns all clips whose ExpiresAt is before the current time.
-func (s *ClipStore) ExpiredClips() []*model.Clip {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+// It resets the internal timer to fire when the next clip expires.
+// Returns: expired clips, timer channel (nil if no clips remain), kick channel
+// that is closed when a new clip becomes the earliest to expire.
+func (s *ClipStore) ExpiredClips() (expired []*model.Clip, timerCh <-chan time.Time, kick <-chan struct{}) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Stop previous timer
+	if s.expiryTimer != nil {
+		s.expiryTimer.Stop()
+		s.expiryTimer = nil
+	}
 
 	now := time.Now()
-	var expired []*model.Clip
-	for _, clip := range s.clips {
-		if clip.ExpiresAt.Before(now) {
-			expired = append(expired, clip)
+	for e := s.byExpiry.Front(); e != nil; e = e.Next() {
+		clip := e.Value.(*model.Clip)
+		if !clip.ExpiresAt.Before(now) {
+			break
 		}
+		expired = append(expired, clip)
 	}
-	return expired
+
+	// Find the next non-expired clip (skip over the ones we just collected)
+	e := s.byExpiry.Front()
+	for i := 0; i < len(expired) && e != nil; i++ {
+		e = e.Next()
+	}
+	if e != nil {
+		next := e.Value.(*model.Clip)
+		d := time.Until(next.ExpiresAt)
+		if d < 0 {
+			d = 0
+		}
+		s.expiryTimer = time.NewTimer(d)
+		timerCh = s.expiryTimer.C
+	}
+
+	kick = s.expiryKick
+	return
 }
 
 // removeClipFiles removes all disk files associated with a valid clip (metadata + image).

@@ -174,8 +174,9 @@ func (s *ClipService) Delete(id string) error {
 }
 
 // CleanExpired removes all expired clips and broadcasts each removal.
-func (s *ClipService) CleanExpired() {
-	expired := s.store.ExpiredClips()
+// Returns timer channel and kick channel for the cleaner loop.
+func (s *ClipService) CleanExpired() (timerCh <-chan time.Time, kick <-chan struct{}) {
+	expired, timerCh, kick := s.store.ExpiredClips()
 	for _, clip := range expired {
 		if err := s.store.Remove(clip.ID); err != nil {
 			log.Errorf("failed to remove expired clip %s: %v", clip.ID, err)
@@ -187,19 +188,25 @@ func (s *ClipService) CleanExpired() {
 		})
 		log.Infof("cleaned expired clip: %s", clip.ID)
 	}
+	// If we removed clips, the next-to-expire may have changed.
+	if len(expired) > 0 {
+		_, timerCh, kick = s.store.ExpiredClips()
+	}
+	return
 }
 
-// StartCleaner launches a goroutine that periodically cleans expired clips.
+// StartCleaner launches a goroutine that cleans expired clips on precise timers.
 func (s *ClipService) StartCleaner(ctx context.Context) {
-	ticker := time.NewTicker(s.config.CleanupInterval)
 	go func() {
-		defer ticker.Stop()
+		timerCh, kick := s.CleanExpired()
 		for {
 			select {
 			case <-ctx.Done():
 				return
-			case <-ticker.C:
-				s.CleanExpired()
+			case <-timerCh:
+				timerCh, kick = s.CleanExpired()
+			case <-kick:
+				timerCh, kick = s.CleanExpired()
 			}
 		}
 	}()

@@ -18,7 +18,6 @@ type ServerConfig struct {
 	MinTTL                time.Duration `yaml:"-"`
 	MaxTTL                time.Duration `yaml:"-"`
 	TTLOptions            []string      `yaml:"ttlOptions"`
-	CleanupInterval       time.Duration `yaml:"-"`
 	BlurDisconnectTimeout time.Duration `yaml:"-"`
 	WSReadTimeout         time.Duration `yaml:"-"`
 	WSHeartbeatInterval   time.Duration `yaml:"-"`
@@ -35,7 +34,6 @@ type rawConfig struct {
 	MinTTL                string   `yaml:"minTTL"`
 	MaxTTL                string   `yaml:"maxTTL"`
 	TTLOptions            []string `yaml:"ttlOptions"`
-	CleanupInterval       string   `yaml:"cleanupInterval"`
 	BlurDisconnectTimeout string   `yaml:"blurDisconnectTimeout"`
 	WSReadTimeout         string   `yaml:"wsReadTimeout"`
 	WSHeartbeatInterval   string   `yaml:"wsHeartbeatInterval"`
@@ -75,7 +73,6 @@ func Load(path string) (*ServerConfig, error) {
 		MinTTL:                5 * time.Minute,
 		MaxTTL:                24 * time.Hour,
 		TTLOptions:            []string{"5m", "30m", "1h", "6h", "24h"},
-		CleanupInterval:       time.Minute,
 		BlurDisconnectTimeout: 5 * time.Minute,
 		WSReadTimeout:         60 * time.Second,
 		WSHeartbeatInterval:   30 * time.Second,
@@ -128,13 +125,6 @@ func Load(path string) (*ServerConfig, error) {
 			cfg.MaxTTL = d
 		} else {
 			return nil, fmt.Errorf("invalid maxTTL %q: %w", raw.MaxTTL, err)
-		}
-	}
-	if raw.CleanupInterval != "" {
-		if d, err := time.ParseDuration(raw.CleanupInterval); err == nil {
-			cfg.CleanupInterval = d
-		} else {
-			return nil, fmt.Errorf("invalid cleanupInterval %q: %w", raw.CleanupInterval, err)
 		}
 	}
 	if raw.BlurDisconnectTimeout != "" {
