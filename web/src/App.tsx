@@ -89,25 +89,39 @@ function AppContent() {
     }
 
     const text = e.clipboardData?.getData('text/plain');
-    if (text) {
-      if (checkTextDuplicate(text) && !(await confirmDuplicate())) return;
-      setLoading(true);
-      try {
-        await api.post('/clips', { type: 'text', content: text, ttl });
-        message.success('Text saved');
-      } catch {
-        message.error('Save failed');
-      } finally {
-        setLoading(false);
-      }
+    if (!text) {
+      message.info('Clipboard is empty');
+      return;
+    }
+    if (checkTextDuplicate(text) && !(await confirmDuplicate())) return;
+    setLoading(true);
+    try {
+      await api.post('/clips', { type: 'text', content: text, ttl });
+      message.success('Text saved');
+    } catch {
+      message.error('Save failed');
+    } finally {
+      setLoading(false);
     }
   });
 
-  const handlePasteText = useCallback(async () => {
+  const handlePaste = useCallback(async () => {
     if (loading || !connected) return;
     try {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const imageType = item.types.find((t) => t.startsWith('image/'));
+        if (imageType) {
+          const blob = await item.getType(imageType);
+          await uploadImage(blob);
+          return;
+        }
+      }
       const text = await navigator.clipboard.readText();
-      if (!text) return;
+      if (!text) {
+        message.info('Clipboard is empty');
+        return;
+      }
       if (checkTextDuplicate(text) && !(await confirmDuplicate())) return;
       setLoading(true);
       await api.post('/clips', { type: 'text', content: text, ttl });
@@ -117,7 +131,7 @@ function AppContent() {
     } finally {
       setLoading(false);
     }
-  }, [ttl, loading, connected, message]);
+  }, [ttl, loading, connected, message, uploadImage, confirmDuplicate]);
 
   const handleSelectImage = useCallback(
     async (file: File) => {
@@ -176,7 +190,7 @@ function AppContent() {
   const disabled = !connected;
 
   return (
-    <div className="max-w-2xl mx-auto p-4">
+    <div className="max-w-3xl mx-auto p-4">
       {!connected && limits && (
         <div className="mb-4 p-3 bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 rounded-lg text-center text-sm">
           Connection lost. Reconnecting…
@@ -194,7 +208,7 @@ function AppContent() {
           ttl={ttl}
           ttlOptions={limits.ttlOptions}
           onTTLChange={setTTL}
-          onPasteText={handlePasteText}
+          onPasteText={handlePaste}
           onSelectImage={handleSelectImage}
           loading={loading}
           disabled={disabled}
