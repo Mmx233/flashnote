@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
   <!-- Circular flow arrows -->
   <!-- Top-right arc arrow -->
-  <path d="M32 8 A24 24 0 0 1 56 32" stroke="#6366F1" stroke-width="5" stroke-linecap="round" fill="none" />
-  <polygon points="56,26 56,38 50,32" fill="#6366F1" />
+  <path d="M32 8 A24 24 0 0 1 56 32" stroke="#6366F1" stroke-width="10" stroke-linecap="round" fill="none" />
+  <polygon points="56,22 56,42 46,32" fill="#6366F1" stroke="#6366F1" stroke-width="2" stroke-linejoin="round" />
   <!-- Bottom-left arc arrow -->
-  <path d="M32 56 A24 24 0 0 1 8 32" stroke="#818CF8" stroke-width="5" stroke-linecap="round" fill="none" />
-  <polygon points="8,38 8,26 14,32" fill="#818CF8" />
+  <path d="M32 56 A24 24 0 0 1 8 32" stroke="#818CF8" stroke-width="10" stroke-linecap="round" fill="none" />
+  <polygon points="8,42 8,22 18,32" fill="#818CF8" stroke="#818CF8" stroke-width="2" stroke-linejoin="round" />
   <!-- Center lightning bolt -->
-  <polygon points="36,18 26,35 32,35 28,46 38,29 32,29 36,18" fill="#FBBF24" />
+  <polygon points="40,10 22,35 30,35 24,54 42,29 34,29 40,10" fill="#FBBF24" stroke="#FBBF24" stroke-width="3" stroke-linejoin="round" />
 </svg>
