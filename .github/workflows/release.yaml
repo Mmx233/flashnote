@@ -47,7 +47,7 @@ jobs:
           NAME: flashnote
           LDFLAGS: -s -w -extldflags "-static" -X github.com/Mmx233/flashnote/cmd.version=${{ github.ref_name }}
         run: |
-          ./build/release . --extra-arches --output build/output \
+          ./build/release . --output build/output \
             --name "$NAME" \
             --ldflags="$LDFLAGS" \
             -c tar.gz
