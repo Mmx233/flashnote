@@ -37,16 +37,6 @@ Self-hosted ephemeral text & image sharing. Paste to upload, one-click copy, aut
 
 ## Quick Start
 
-### Docker
-
-```bash
-docker run -d \
-  -p 8080:8080 \
-  -v ./data:/data \
-  -v ./config.yaml:/config.yaml \
-  mmx233/flashnote
-```
-
 ### Binary
 
 Download the latest binary from [Releases](https://github.com/Mmx233/flashnote/releases), then:
@@ -57,6 +47,17 @@ cp examples/config.yaml config.yaml
 ```
 
 Open `http://localhost:8080` in your browser.
+
+### Docker
+
+```bash
+mkdir -p data && chown -R 65532:65532 data
+docker run -d \
+  -p 8080:8080 \
+  -v ./data:/data \
+  -v ./config.yaml:/config.yaml \
+  mmx233/flashnote
+```
 
 ### Build from Source
 
