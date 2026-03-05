@@ -4,7 +4,9 @@ import { CopyOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { TextClip } from '@/types';
 import Countdown from './Countdown';
 
-const MAX_HEIGHT = 128;
+const LINE_HEIGHT = 1.625;   // matches Tailwind's leading-relaxed (1.625rem ≈ 26px)
+const MAX_LINES = 5;
+const MAX_HEIGHT_REM = LINE_HEIGHT * MAX_LINES; // 8.125rem — always a whole number of lines
 
 interface TextClipCardProps {
   clip: TextClip;
@@ -20,20 +22,20 @@ export default function TextClipCard({ clip, onCopy, onDelete, disabled }: TextC
 
   useEffect(() => {
     const el = preRef.current;
-    if (el) setOverflows(el.scrollHeight > MAX_HEIGHT);
+    if (el) setOverflows(el.scrollHeight > el.clientHeight);
   }, [clip.content]);
 
   return (
     <>
       <div className="flex flex-col h-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
         <div
-          className={`relative flex-1 ${overflows ? 'cursor-pointer' : ''}`}
+          className={`relative flex-1 pb-2 ${overflows ? 'cursor-pointer' : ''}`}
           onClick={overflows ? () => setOpen(true) : undefined}
         >
           <pre
             ref={preRef}
-            className="px-4 py-3 text-sm whitespace-pre-wrap break-all font-sans !mb-0 overflow-hidden"
-            style={{ maxHeight: MAX_HEIGHT }}
+            className="px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap break-all font-sans !mb-0 overflow-hidden"
+            style={{ maxHeight: `${MAX_HEIGHT_REM}rem` }}
           >
             {clip.content}
           </pre>
