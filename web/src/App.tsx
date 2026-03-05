@@ -255,18 +255,6 @@ function AppContent() {
           disabled={disabled}
         />
       )}
-      {/* DEBUG */}
-      <div className="mt-8 flex flex-wrap gap-2 justify-center">
-        <button className="px-2 py-1 text-xs rounded bg-gray-200 dark:bg-gray-700" onClick={() => useAppStore.setState({ connected: !connected })}>
-          toggle connected ({connected ? 'on' : 'off'})
-        </button>
-        <button className="px-2 py-1 text-xs rounded bg-gray-200 dark:bg-gray-700" onClick={() => useAppStore.setState({ reconnecting: !reconnecting })}>
-          toggle reconnecting ({reconnecting ? 'on' : 'off'})
-        </button>
-        <button className="px-2 py-1 text-xs rounded bg-gray-200 dark:bg-gray-700" onClick={() => useAppStore.setState({ sleeping: !sleeping })}>
-          toggle sleeping ({sleeping ? 'on' : 'off'})
-        </button>
-      </div>
     </div>
   );
 }
