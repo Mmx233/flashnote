@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
 )
 
 // Response is the unified API response format.
@@ -52,6 +53,7 @@ func HandleError(ctx *gin.Context, err error) {
 	if errors.As(err, &bizErr) {
 		Error(ctx, bizErr.code, bizErr.msg)
 	} else {
+		log.Errorf("internal server error: %v", err)
 		Error(ctx, CodeInternalError, "internal server error")
 	}
 }
