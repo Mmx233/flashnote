@@ -25,6 +25,10 @@ var rootCmd = &cobra.Command{
 	Version: version,
 
 	Run: func(cmd *cobra.Command, args []string) {
+		if version != "dev" {
+			gin.SetMode(gin.ReleaseMode)
+		}
+
 		// Load configuration
 		cfg, err := config.Load(configPath)
 		if err != nil {
