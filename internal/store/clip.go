@@ -29,7 +29,7 @@ type ClipStore struct {
 	byCreated   *list.List            // CreatedAt desc, values are *model.Clip
 	byExpiry    *list.List            // ExpiresAt asc, values are *model.Clip
 	expiryTimer *time.Timer           // fires when the earliest clip expires; nil if no clips
-	expiryKick  chan struct{}          // closed by Save when a new clip becomes the earliest
+	expiryKick  chan struct{}         // closed by Save when a new clip becomes the earliest
 	storePath   string
 }
 

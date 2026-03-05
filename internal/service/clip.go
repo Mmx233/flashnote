@@ -212,7 +212,6 @@ func (s *ClipService) StartCleaner(ctx context.Context) {
 	}()
 }
 
-
 // saveUploadedFile saves a multipart file to the given destination path.
 func saveUploadedFile(file *multipart.FileHeader, dst string) error {
 	src, err := file.Open()
