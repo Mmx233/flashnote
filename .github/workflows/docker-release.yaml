@@ -13,6 +13,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'yarn'
+          cache-dependency-path: web/yarn.lock
+
+      - name: Build Web
+        working-directory: web
+        run: |
+          yarn install --frozen-lockfile
+          yarn build
+
       - name: Setup Go
         uses: actions/setup-go@v5
 
