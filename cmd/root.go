@@ -17,10 +17,13 @@ import (
 )
 
 var configPath string
+var version = "dev"
 
 var rootCmd = &cobra.Command{
-	Use:   "flashnote",
-	Short: "Flash Note - Self-hosted ephemeral text & image sharing",
+	Use:     "flashnote",
+	Short:   "Flash Note - Self-hosted ephemeral text & image sharing",
+	Version: version,
+
 	Run: func(cmd *cobra.Command, args []string) {
 		// Load configuration
 		cfg, err := config.Load(configPath)
