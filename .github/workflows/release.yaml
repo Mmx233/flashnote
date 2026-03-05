@@ -1,0 +1,59 @@
+name: Release Draft
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'yarn'
+          cache-dependency-path: web/yarn.lock
+
+      - name: Build Web
+        working-directory: web
+        run: |
+          yarn install --frozen-lockfile
+          yarn build
+
+      - name: Setup Release Cli
+        uses: robinraju/release-downloader@v1.12
+        with:
+          repository: "Mmx233/GoReleaseCli"
+          latest: true
+          fileName: 'release_linux_amd64.tar.gz'
+          extract: true
+          out-file-path: './build/'
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+
+      - name: Build Go
+        env:
+          NAME: flashnote
+          LDFLAGS: -s -w -extldflags "-static" -X github.com/Mmx233/flashnote/cmd.version=${{ github.ref_name }}
+        run: |
+          ./build/release . --extra-arches --output build/output \
+            --name "$NAME" \
+            --ldflags="$LDFLAGS" \
+            -c tar.gz
+
+      - name: Upload Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: build/output/*.tar.gz
