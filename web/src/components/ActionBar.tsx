@@ -1,6 +1,6 @@
 import { useRef } from 'react';
-import { Button, Space } from 'antd';
-import { SnippetsOutlined, PictureOutlined } from '@ant-design/icons';
+import { Button, Divider, Space, Tooltip } from 'antd';
+import { SnippetsOutlined, PictureOutlined, ClockCircleOutlined } from '@ant-design/icons';
 
 interface ActionBarProps {
   ttl: string;
@@ -33,7 +33,7 @@ export default function ActionBar({
 
   return (
     <div className="flex items-center gap-3 mb-4 flex-wrap">
-      <Space.Compact>
+      <Space.Compact className="[&_.ant-btn]:rounded-lg">
         <Button
           type="primary"
           icon={<SnippetsOutlined />}
@@ -43,12 +43,14 @@ export default function ActionBar({
         >
           Paste
         </Button>
-        <Button
-          icon={<PictureOutlined />}
-          loading={loading}
-          disabled={disabled}
-          onClick={() => fileRef.current?.click()}
-        />
+        <Tooltip title="Upload image">
+          <Button
+            icon={<PictureOutlined />}
+            loading={loading}
+            disabled={disabled}
+            onClick={() => fileRef.current?.click()}
+          />
+        </Tooltip>
       </Space.Compact>
 
       <input
@@ -59,19 +61,24 @@ export default function ActionBar({
         onChange={handleFileChange}
       />
 
-      <Space.Compact>
-        {ttlOptions.map((opt) => (
-          <Button
-            key={opt}
-            type={ttl === opt ? 'primary' : 'default'}
-            size="small"
-            disabled={disabled}
-            onClick={() => onTTLChange(opt)}
-          >
-            {opt}
-          </Button>
-        ))}
-      </Space.Compact>
+      <Divider orientation="vertical" className="h-6 border-gray-300 dark:border-gray-600" />
+
+      <div className="flex items-center gap-2">
+        <ClockCircleOutlined className="text-base text-gray-400 dark:text-gray-500" />
+        <Space.Compact className="[&_.ant-btn]:rounded-lg">
+          {ttlOptions.map((opt) => (
+            <Button
+              key={opt}
+              type={ttl === opt ? 'primary' : 'default'}
+              size="small"
+              disabled={disabled}
+              onClick={() => onTTLChange(opt)}
+            >
+              {opt}
+            </Button>
+          ))}
+        </Space.Compact>
+      </div>
     </div>
   );
 }
