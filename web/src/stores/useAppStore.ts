@@ -30,14 +30,17 @@ const useAppStore = create<AppState>((set) => ({
   clips: [],
   clipsReady: false,
   pendingClips: [],
-  ttl: '1h',
+  ttl: localStorage.getItem('ttl') || '1h',
 
   setConnected: (connected) => set({ connected }),
   setLimits: (limits) => set({ limits }),
   setClips: (clips) => set({ clips }),
   prependClip: (clip) => set((s) => ({ clips: [clip, ...s.clips] })),
   removeClip: (id) => set((s) => ({ clips: s.clips.filter((c) => c.id !== id) })),
-  setTTL: (ttl) => set({ ttl }),
+  setTTL: (ttl) => {
+    localStorage.setItem('ttl', ttl);
+    set({ ttl });
+  },
   bufferClip: (clip) => set((s) => ({ pendingClips: [...s.pendingClips, clip] })),
   flushPending: (list) =>
     set((s) => {

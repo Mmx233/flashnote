@@ -54,7 +54,15 @@ export default function useWs() {
         switch (msg.type) {
           case 'config': {
             const cfg = msg.data as ServerLimits;
-            useAppStore.setState({ limits: cfg, ttl: cfg.defaultTTL });
+            const saved = localStorage.getItem('ttl');
+            let ttl: string;
+            if (saved && cfg.ttlOptions.includes(saved)) {
+              ttl = saved;
+            } else {
+              ttl = cfg.defaultTTL;
+              localStorage.removeItem('ttl');
+            }
+            useAppStore.setState({ limits: cfg, ttl });
             ws.send(PING);
             break;
           }
