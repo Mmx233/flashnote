@@ -206,7 +206,7 @@ function AppContent() {
   const disabled = !connected;
 
   return (
-    <div className="max-w-3xl mx-auto p-4">
+    <div className="max-w-3xl mx-auto px-[min(5%,2rem)] py-4">
       <div className={`mb-4 text-center text-sm pointer-events-none transition-opacity duration-500 ${statusVisible ? 'opacity-100 text-gray-400 dark:text-gray-500' : 'opacity-0'} ${statusVisible && !sleeping ? 'animate-pulse' : ''}`}>
         {statusText}
       </div>

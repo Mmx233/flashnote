@@ -32,7 +32,7 @@ export default function ActionBar({
   };
 
   return (
-    <div className="flex items-center gap-3 mb-4 flex-wrap">
+    <div className="flex flex-col items-start gap-3 mb-4 sm:flex-row sm:items-center sm:gap-3">
       <Space.Compact className="[&_.ant-btn]:rounded-lg">
         <Button
           type="primary"
@@ -61,17 +61,21 @@ export default function ActionBar({
         onChange={handleFileChange}
       />
 
-      <Divider orientation="vertical" className="h-6 border-gray-300 dark:border-gray-600" />
+      <div className="hidden sm:flex items-center">
+        <Divider orientation="vertical" className="h-6 border-gray-300 dark:border-gray-600" />
+      </div>
 
       <div className="flex items-center gap-2">
-        <ClockCircleOutlined className="text-base text-gray-400 dark:text-gray-500" />
+        <span className="hidden sm:inline-flex text-lg text-gray-400 dark:text-gray-500 mr-1">
+          <ClockCircleOutlined />
+        </span>
         <Space.Compact className="[&_.ant-btn]:rounded-lg">
           {ttlOptions.map((opt) => (
             <Button
               key={opt}
               type={ttl === opt ? 'primary' : 'default'}
-              size="small"
               disabled={disabled}
+              className="min-w-[3rem]"
               onClick={() => onTTLChange(opt)}
             >
               {opt}
