@@ -91,8 +91,10 @@ export default function useWs() {
 
     ws.onclose = () => {
       wsRef.current = null;
-      useAppStore.setState({ connected: false });
-      if (document.hasFocus()) {
+      const isSleeping = useAppStore.getState().sleeping;
+      useAppStore.setState({ connected: false, reconnecting: !isSleeping });
+      // Always schedule reconnect unless the tab is sleeping (blur-disconnected).
+      if (!isSleeping) {
         setReconnectDelay(3000);
       }
     };
@@ -125,7 +127,8 @@ export default function useWs() {
   const handleFocus = useCallback(() => {
     setBlurDelay(null);
     setReconnectDelay(null);
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
       useAppStore.setState({ reconnecting: true });
       connect();
     }

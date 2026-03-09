@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
 import { ConfigProvider, theme, App as AntApp, Skeleton } from 'antd';
-import { AnimatePresence, motion } from 'motion/react';
 
 import useAppStore from '@/stores/useAppStore';
 import useDarkMode from '@/hooks/useDarkMode';
@@ -54,7 +53,7 @@ function AppContent() {
   const ttl = useAppStore((s) => s.ttl);
   const setTTL = useAppStore((s) => s.setTTL);
 
-  const statusVisible = sleeping || (reconnecting && connected);
+  const statusVisible = sleeping || reconnecting;
   const [statusText, setStatusText] = useState('\u00A0');
 
   // Update text only when becoming visible, so fade-out keeps the old text
@@ -208,23 +207,6 @@ function AppContent() {
 
   return (
     <div className="max-w-3xl mx-auto p-4">
-      <AnimatePresence>
-        {!connected && limits && (
-          <motion.div
-            key="lost"
-            initial={{ height: 0 }}
-            animate={{ height: 'auto' }}
-            exit={{ height: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
-            <div className="mb-4 p-3 bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 rounded-lg text-center text-sm">
-              ⚠️ Connection lost. Reconnecting…
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <div className={`mb-4 text-center text-sm pointer-events-none transition-opacity duration-500 ${statusVisible ? 'opacity-100 text-gray-400 dark:text-gray-500' : 'opacity-0'} ${statusVisible && !sleeping ? 'animate-pulse' : ''}`}>
         {statusText}
       </div>
