@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { ConfigProvider, theme, App as AntApp, Skeleton } from 'antd';
+import { PictureOutlined } from '@ant-design/icons';
 
 import useAppStore from '@/stores/useAppStore';
 import useDarkMode from '@/hooks/useDarkMode';
@@ -83,8 +84,59 @@ function AppContent() {
         setLoading(false);
       }
     },
-    [ttl, message],
+    [ttl, message, confirmDuplicate],
   );
+
+  const uploadText = useCallback(
+    async (text: string) => {
+      const hash = await hashText(text);
+      if (checkDuplicate(hash) && !(await confirmDuplicate())) return;
+      setLoading(true);
+      try {
+        await api.post('/clips', { type: 'text', content: text, ttl, hash });
+        message.success('Text saved');
+      } catch {
+        message.error('Save failed');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [ttl, message, confirmDuplicate],
+  );
+
+  const [dragging, setDragging] = useState(false);
+  const dragCounter = useMemo(() => ({ current: 0 }), []);
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current++;
+    if (e.dataTransfer.types.includes('Files')) setDragging(true);
+  }, [dragCounter]);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current--;
+    if (dragCounter.current === 0) setDragging(false);
+  }, [dragCounter]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+  }, []);
+
+  const handleDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    dragCounter.current = 0;
+    setDragging(false);
+    if (loading || !connected) return;
+    const files = e.dataTransfer.files;
+    for (const file of Array.from(files)) {
+      if (file.type.startsWith('image/')) {
+        await uploadImage(file);
+        return;
+      }
+    }
+    message.info('Only image files are supported');
+  }, [loading, connected, uploadImage, message, dragCounter]);
 
   useWs();
 
@@ -107,17 +159,7 @@ function AppContent() {
       message.info('Clipboard is empty');
       return;
     }
-    const textHash = await hashText(text);
-    if (checkDuplicate(textHash) && !(await confirmDuplicate())) return;
-    setLoading(true);
-    try {
-      await api.post('/clips', { type: 'text', content: text, ttl, hash: textHash });
-      message.success('Text saved');
-    } catch {
-      message.error('Save failed');
-    } finally {
-      setLoading(false);
-    }
+    await uploadText(text);
   });
 
   const handlePaste = useCallback(async () => {
@@ -137,17 +179,11 @@ function AppContent() {
         message.info('Clipboard is empty');
         return;
       }
-      const pasteHash = await hashText(text);
-      if (checkDuplicate(pasteHash) && !(await confirmDuplicate())) return;
-      setLoading(true);
-      await api.post('/clips', { type: 'text', content: text, ttl, hash: pasteHash });
-      message.success('Text saved');
+      await uploadText(text);
     } catch {
       message.error('Paste failed');
-    } finally {
-      setLoading(false);
     }
-  }, [ttl, loading, connected, message, uploadImage, confirmDuplicate]);
+  }, [loading, connected, message, uploadImage, uploadText]);
 
   const handleSelectImage = useCallback(
     async (file: File) => {
@@ -206,7 +242,21 @@ function AppContent() {
   const disabled = !connected;
 
   return (
-    <div className="max-w-3xl mx-auto px-[min(5%,2rem)] py-4">
+    <div
+      className="min-h-screen relative"
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
+      <div className={`fixed inset-0 z-50 flex items-center justify-center pointer-events-none transition-opacity duration-150 ${dragging ? 'bg-black/50 backdrop-blur-sm opacity-100' : 'opacity-0'}`}>
+        <div className={`absolute inset-3 rounded-xl border-2 border-dashed transition-colors duration-150 ${dragging ? 'border-blue-400/70' : 'border-transparent'}`} />
+        <div className={`flex flex-col items-center gap-2 transition-opacity duration-150 ${dragging ? 'opacity-100' : 'opacity-0'}`}>
+          <PictureOutlined className="text-5xl" style={{ color: 'rgba(96,165,250,0.8)' }} />
+          <p className="text-base text-white/60">Drop image to upload</p>
+        </div>
+      </div>
+      <div className="max-w-3xl mx-auto px-[min(5%,2rem)] py-4">
       <div className={`mb-4 text-center text-sm pointer-events-none transition-opacity duration-500 ${statusVisible ? 'opacity-100 text-gray-400 dark:text-gray-500' : 'opacity-0'} ${statusVisible && !sleeping ? 'animate-pulse' : ''}`}>
         {statusText}
       </div>
@@ -237,6 +287,7 @@ function AppContent() {
           disabled={disabled}
         />
       )}
+      </div>
     </div>
   );
 }
